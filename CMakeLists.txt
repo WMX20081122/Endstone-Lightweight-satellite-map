@@ -5,6 +5,7 @@ set(BASE_VERSION "1.0.0")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /utf-8 /W3 /wd4996")
@@ -12,7 +13,7 @@ endif()
 
 include(FetchContent)
 
-# zlib (needed for gzip decompression in tar_extractor)
+# zlib (for gzip decompression in auto-installer)
 FetchContent_Declare(
     zlib
     GIT_REPOSITORY https://github.com/madler/zlib.git
@@ -36,14 +37,6 @@ FetchContent_Declare(
     GIT_TAG v3.12.0
 )
 FetchContent_MakeAvailable(nlohmann_json)
-
-# zlib (for gzip decompression in auto-installer)
-FetchContent_Declare(
-    zlib
-    GIT_REPOSITORY https://github.com/madler/zlib.git
-    GIT_TAG v1.3.1
-)
-FetchContent_MakeAvailable(zlib)
 
 # cpp-httplib (header-only HTTP server/client)
 # Enable OpenSSL for HTTPS support and link statically
