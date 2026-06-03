@@ -130,9 +130,9 @@ void BDSLMPlugin::onEnable() {
 §e
 §6  WMX SatMap §e| §f卫星地图插件
 §f  作者: §bWMX20081122 §f协作: §b千寻酱
-§f  地图地址: §bhttp://{}:{}/
 )";
-    getLogger().info(boot_logo, ws.bind_address, ws.port);
+    getLogger().info(boot_logo);
+    getLogger().info("§e[卫星地图] §f地图地址: §bhttp://{}:{}/", ws.bind_address, ws.port);
     getLogger().info("§e[卫星地图] §f加载完毕 §e| §f版本 §b{}", getDescription().getVersion());
 }
 
