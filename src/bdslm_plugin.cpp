@@ -81,10 +81,9 @@ void BDSLMPlugin::onEnable() {
         auto &player = event.getPlayer();
         auto loc = player.getLocation();
         std::string dim = "overworld";
-        auto *dim_ptr = loc.getDimension();
-        if (dim_ptr) {
-            dim = dim_ptr->getName();
-        }
+        try {
+            dim = loc.getDimension().getName();
+        } catch (...) {}
         tracker_->onMove(player.getName(), loc.getX(), loc.getY(), loc.getZ(), dim);
     });
 
