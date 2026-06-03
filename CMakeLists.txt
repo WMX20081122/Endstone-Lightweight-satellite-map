@@ -12,6 +12,15 @@ endif()
 
 include(FetchContent)
 
+# zlib (needed for gzip decompression in tar_extractor)
+FetchContent_Declare(
+    zlib
+    GIT_REPOSITORY https://github.com/madler/zlib.git
+    GIT_TAG v1.3.1
+)
+set(ZLIB_BUILD_EXAMPLES OFF)
+FetchContent_MakeAvailable(zlib)
+
 # Endstone API
 FetchContent_Declare(
     endstone
@@ -27,6 +36,14 @@ FetchContent_Declare(
     GIT_TAG v3.12.0
 )
 FetchContent_MakeAvailable(nlohmann_json)
+
+# zlib (for gzip decompression in auto-installer)
+FetchContent_Declare(
+    zlib
+    GIT_REPOSITORY https://github.com/madler/zlib.git
+    GIT_TAG v1.3.1
+)
+FetchContent_MakeAvailable(zlib)
 
 # cpp-httplib (header-only HTTP server/client)
 # Enable OpenSSL for HTTPS support and link statically
@@ -52,6 +69,7 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE
         nlohmann_json::nlohmann_json
         httplib::httplib
+        zlibstatic
 )
 
 target_include_directories(${PROJECT_NAME}

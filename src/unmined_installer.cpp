@@ -1,10 +1,10 @@
 #include "bdslm/unmined_installer.h"
+#include "bdslm/tar_extractor.h"
 #include <filesystem>
 #include <fstream>
 #include <cstdlib>
 #include <cstdio>
 #include <thread>
-#include <array>
 
 #include <httplib.h>
 
@@ -87,35 +87,6 @@ void UnminedInstaller::ensureInstalledAsync(std::function<void(bool success)> ca
     }).detach();
 }
 
-std::string UnminedInstaller::findExtractTool() const {
-#ifdef _WIN32
-    // Windows: PowerShell can extract .zip
-    if (std::system("where powershell > nul 2>&1") == 0) return "powershell";
-    return "";
-#else
-    // Linux: try tar, then search for python3 in common paths
-    if (std::system("which tar > /dev/null 2>&1") == 0) return "tar";
-
-    // Search for python3 in PATH and common locations
-    std::vector<std::string> python_paths = {
-        "python3",
-        "/usr/bin/python3",
-        "/usr/local/bin/python3",
-        "/home/container/python/bin/python3",  // MCSM Endstone
-        "./python/bin/python3",
-    };
-
-    for (const auto &p : python_paths) {
-        std::string test_cmd = p + " -c \"import tarfile\" 2>/dev/null";
-        if (std::system(test_cmd.c_str()) == 0) {
-            return p;
-        }
-    }
-
-    return "";
-#endif
-}
-
 bool UnminedInstaller::downloadAndInstall() {
     std::string platform = detectPlatform();
 
@@ -123,13 +94,17 @@ bool UnminedInstaller::downloadAndInstall() {
     std::filesystem::create_directories(unmined_dir_);
     std::filesystem::create_directories(data_dir_ / ".tmp");
 
-    std::string archive_ext = ".tar.gz";
-#ifdef _WIN32
-    archive_ext = ".zip";
-#endif
-    std::filesystem::path tmp_archive = data_dir_ / ".tmp" / ("unmined-cli-download" + archive_ext);
-
     // Download via cpp-httplib HTTPS client
+    std::filesystem::path tmp_archive;
+    bool is_zip = false;
+
+#ifdef _WIN32
+    tmp_archive = data_dir_ / ".tmp" / "unmined-cli-download.zip";
+    is_zip = true;
+#else
+    tmp_archive = data_dir_ / ".tmp" / "unmined-cli-download.tar.gz";
+#endif
+
     httplib::Client cli("https://unmined.net");
     cli.set_connection_timeout(30);
     cli.set_read_timeout(600);
@@ -170,40 +145,36 @@ bool UnminedInstaller::downloadAndInstall() {
         return false;
     }
 
-    // Find extraction tool
-    std::string extract_tool = findExtractTool();
-    if (extract_tool.empty()) {
-        last_error_ = "No extraction tool found (need tar or python3 with tarfile module)";
-        std::filesystem::remove(tmp_archive);
-        return false;
-    }
-
-    // Extract
+    // Extract using built-in extractor (no external tools needed!)
     std::filesystem::path extract_dir = data_dir_ / ".tmp" / "extract";
     std::filesystem::create_directories(extract_dir);
 
-    int ret;
+    bool extract_ok = false;
+    if (is_zip) {
 #ifdef _WIN32
-    std::string extract_cmd = "powershell -Command \"Expand-Archive -Path '" +
-        tmp_archive.string() + "' -DestinationPath '" + extract_dir.string() + "' -Force\" 2>$null";
-    ret = std::system(extract_cmd.c_str());
+        // Windows .zip: try PowerShell, then 7z
+        std::string cmd = "powershell -Command \"Expand-Archive -Path '" +
+            tmp_archive.string() + "' -DestinationPath '" + extract_dir.string() + "' -Force\" 2>$null";
+        int ret = std::system(cmd.c_str());
+        extract_ok = (ret == 0);
+        if (!extract_ok) {
+            last_error_ = "PowerShell extraction failed";
+        }
 #else
-    if (extract_tool == "tar") {
-        std::string tar_cmd = "tar xzf \"" + tmp_archive.string() +
-            "\" -C \"" + extract_dir.string() + "\" 2>/dev/null";
-        ret = std::system(tar_cmd.c_str());
-    } else {
-        // Use python3's tarfile module
-        std::string py_cmd = extract_tool + " -c \"import tarfile; tarfile.open('" +
-            tmp_archive.string() + "', 'r:gz').extractall('" + extract_dir.string() + "')\" 2>/dev/null";
-        ret = std::system(py_cmd.c_str());
-    }
+        last_error_ = "ZIP extraction only supported on Windows";
 #endif
+    } else {
+        // Linux .tar.gz: use built-in TarGzExtractor
+        std::string tar_error;
+        extract_ok = TarGzExtractor::extract(tmp_archive.string(), extract_dir.string(), tar_error);
+        if (!extract_ok) {
+            last_error_ = "Tar extraction failed: " + tar_error;
+        }
+    }
 
     std::filesystem::remove(tmp_archive);
 
-    if (ret != 0) {
-        last_error_ = "Extraction failed (exit code " + std::to_string(ret) + ", tool: " + extract_tool + ")";
+    if (!extract_ok) {
         std::filesystem::remove_all(extract_dir);
         return false;
     }
@@ -226,7 +197,7 @@ bool UnminedInstaller::downloadAndInstall() {
         return false;
     }
 
-    // Copy files
+    // Copy files to unmined_dir_
     for (const auto &entry : std::filesystem::recursive_directory_iterator(extracted_dir)) {
         if (!std::filesystem::is_regular_file(entry.path())) continue;
         auto rel = std::filesystem::relative(entry.path(), extracted_dir);
