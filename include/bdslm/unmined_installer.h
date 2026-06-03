@@ -34,11 +34,18 @@ private:
     std::string getDownloadUrl(const std::string &platform) const;
     bool downloadAndInstall();
 
-    // Find extraction tool: lip > 7z > tar
-    std::string findExtractTool() const;
-    bool extractArchive(const std::filesystem::path &archive,
-                        const std::filesystem::path &output_dir,
-                        const std::string &tool);
+    // 7-Zip extraction
+    std::filesystem::path getBundled7zPath() const;
+    bool ensure7zAvailable();
+    bool extractWith7z(const std::filesystem::path &archive,
+                       const std::filesystem::path &output_dir,
+                       const std::string &sevenz_bin);
+
+    // Fallback: system tools
+    std::string findSystemExtractTool() const;
+    bool extractWithSystemTool(const std::filesystem::path &archive,
+                               const std::filesystem::path &output_dir,
+                               const std::string &tool);
 };
 
 }  // namespace bdslm
