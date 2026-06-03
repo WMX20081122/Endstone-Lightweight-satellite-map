@@ -39,9 +39,11 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 
 # cpp-httplib (header-only HTTP server/client)
-# Enable OpenSSL for HTTPS support and link statically
+# Enable OpenSSL for HTTPS and link statically
 set(HTTPLIB_REQUIRE_OPENSSL ON)
 set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE ON)
+# Also static-link brotli and zlib via httplib options
+set(HTTPLIB_REQUIRE_BROTLI ON)
 FetchContent_Declare(
     cpp-httplib
     GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
