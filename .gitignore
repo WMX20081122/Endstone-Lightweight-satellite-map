@@ -1,0 +1,16 @@
+.gitignore for endstone-bdslm
+
+build/
+cmake-build-*/
+*.so
+*.dll
+*.obj
+*.o
+*.a
+*.lib
+.cache/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
