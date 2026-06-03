@@ -145,16 +145,30 @@ bool UnminedInstaller::downloadAndInstall() {
     std::filesystem::path extract_dir = data_dir_ / ".tmp" / "extract";
     std::filesystem::create_directories(extract_dir);
 
-    int ret;
+    int ret = -1;
 #ifdef _WIN32
+    // Windows: use PowerShell for .zip
     std::string extract_cmd = "powershell -Command \"Expand-Archive -Path '" +
         tmp_archive.string() + "' -DestinationPath '" + extract_dir.string() + "' -Force\" 2>$null";
-#else
-    std::string extract_cmd = "tar xzf \"" + tmp_archive.string() +
-        "\" -C \"" + extract_dir.string() + "\" 2>/dev/null";
-#endif
-
     ret = std::system(extract_cmd.c_str());
+#else
+    // Linux: try tar first, fallback to Python
+    if (std::system("which tar > /dev/null 2>&1") == 0) {
+        std::string tar_cmd = "tar xzf \"" + tmp_archive.string() +
+            "\" -C \"" + extract_dir.string() + "\" 2>/dev/null";
+        ret = std::system(tar_cmd.c_str());
+    } else if (std::system("which python3 > /dev/null 2>&1") == 0) {
+        // Fallback: use Python's tarfile module
+        std::string py_cmd = "python3 -c \"import tarfile; tarfile.open('" +
+            tmp_archive.string() + "', 'r:gz').extractall('" + extract_dir.string() + "')\" 2>/dev/null";
+        ret = std::system(py_cmd.c_str());
+    } else {
+        last_error_ = "Neither tar nor python3 found for extraction";
+        std::filesystem::remove(tmp_archive);
+        std::filesystem::remove_all(extract_dir);
+        return false;
+    }
+#endif
     std::filesystem::remove(tmp_archive);
 
     if (ret != 0) {
