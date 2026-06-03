@@ -28,6 +28,9 @@ jobs:
     - name: Install Ninja
       run: sudo apt-get install -y ninja-build
 
+    - name: Install OpenSSL dev
+      run: sudo apt-get install -y libssl-dev
+
     - name: Configure CMake
       run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_FLAGS="-stdlib=libc++"
 
@@ -55,6 +58,9 @@ jobs:
 
     - name: Install CMake 3.29+
       uses: lukka/get-cmake@latest
+
+    - name: Install OpenSSL
+      run: choco install openssl -y
 
     - name: Configure CMake
       run: cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl

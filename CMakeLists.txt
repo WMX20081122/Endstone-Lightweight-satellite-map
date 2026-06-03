@@ -29,6 +29,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 
 # cpp-httplib (header-only HTTP server/client)
+# Enable OpenSSL for HTTPS support (needed for downloading unmined-cli)
+set(HTTPLIB_REQUIRE_OPENSSL ON)
 FetchContent_Declare(
     cpp-httplib
     GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git

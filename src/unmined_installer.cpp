@@ -5,6 +5,8 @@
 #include <cstdio>
 #include <thread>
 
+#include <httplib.h>
+
 namespace bdslm {
 
 UnminedInstaller::UnminedInstaller(const std::filesystem::path &data_dir)
@@ -54,27 +56,14 @@ std::string UnminedInstaller::detectPlatform() const {
 }
 
 std::string UnminedInstaller::getDownloadUrl(const std::string &platform) const {
-    // These URLs return .tar.gz via Content-Disposition header
     if (platform == "linux-x64") {
-        return "https://unmined.net/download/unmined-cli-linux-x64-dev/";
+        return "/download/unmined-cli-linux-x64-dev/";
     } else if (platform == "linux-arm64") {
-        return "https://unmined.net/download/unmined-cli-linux-arm64-dev/";
+        return "/download/unmined-cli-linux-arm64-dev/";
     } else if (platform == "windows-x64") {
-        return "https://unmined.net/download/unmined-cli-windows-x64-dev/";
+        return "/download/unmined-cli-windows-x64-dev/";
     }
-    return "https://unmined.net/download/unmined-cli-linux-x64-dev/";
-}
-
-std::string UnminedInstaller::getArchiveName(const std::string &platform) const {
-    // Expected archive filenames from Content-Disposition
-    if (platform == "linux-x64") {
-        return "unmined-cli_0.19.60-dev_linux-x64.tar.gz";
-    } else if (platform == "linux-arm64") {
-        return "unmined-cli_0.19.60-dev_linux-arm64.tar.gz";
-    } else if (platform == "windows-x64") {
-        return "unmined-cli_0.19.60-dev_windows-x64.zip";
-    }
-    return "unmined-cli_0.19.60-dev_linux-x64.tar.gz";
+    return "/download/unmined-cli-linux-x64-dev/";
 }
 
 bool UnminedInstaller::ensureInstalled() {
@@ -87,7 +76,7 @@ void UnminedInstaller::ensureInstalledAsync(std::function<void(bool success)> ca
         if (callback) callback(true);
         return;
     }
-    if (installing_.load()) return;  // Already installing
+    if (installing_.load()) return;
 
     installing_.store(true);
     std::thread([this, callback]() {
@@ -100,56 +89,54 @@ void UnminedInstaller::ensureInstalledAsync(std::function<void(bool success)> ca
 bool UnminedInstaller::downloadAndInstall() {
     std::string platform = detectPlatform();
 
-    // Check if curl or wget is available
-    bool has_curl = (std::system("which curl > /dev/null 2>&1") == 0);
-    bool has_wget = (std::system("which wget > /dev/null 2>&1") == 0);
-
-    if (!has_curl && !has_wget) {
-        last_error_ = "Neither curl nor wget found. Please install one, or download unmined-cli manually.";
-        return false;
-    }
-
-    std::string download_url = getDownloadUrl(platform);
-
     // Create directories
     std::filesystem::create_directories(unmined_dir_);
     std::filesystem::create_directories(data_dir_ / ".tmp");
 
-    std::filesystem::path tmp_archive = data_dir_ / ".tmp" / getArchiveName(platform);
+    std::string archive_ext = ".tar.gz";
+#ifdef _WIN32
+    archive_ext = ".zip";
+#endif
+    std::filesystem::path tmp_archive = data_dir_ / ".tmp" / ("unmined-cli-download" + archive_ext);
 
-    // Download
-    int ret;
-    if (has_curl) {
-        std::string cmd =
-            "curl -L --connect-timeout 30 --max-time 600 --retry 3 "
-            "-o \"" + tmp_archive.string() + "\" "
-            "\"" + download_url + "\" 2>/dev/null";
-        ret = std::system(cmd.c_str());
-    } else {
-        // Fallback to wget
-        std::string cmd =
-            "wget --timeout=30 --tries=3 -q "
-            "-O \"" + tmp_archive.string() + "\" "
-            "\"" + download_url + "\" 2>/dev/null";
-        ret = std::system(cmd.c_str());
+    // Download via cpp-httplib HTTPS client
+    httplib::Client cli("https://unmined.net");
+    cli.set_connection_timeout(30);
+    cli.set_read_timeout(600);
+    cli.set_follow_location(true);
+
+    std::string path = getDownloadUrl(platform);
+
+    // Open output file
+    std::ofstream ofs(tmp_archive, std::ios::binary);
+    if (!ofs.is_open()) {
+        last_error_ = "Cannot create temp file: " + tmp_archive.string();
+        return false;
     }
 
-    if (ret != 0) {
-        last_error_ = "Download failed (exit code " + std::to_string(ret) + ", tool: " +
-                      (has_curl ? "curl" : "wget") + ")";
+    size_t total_downloaded = 0;
+    auto res = cli.Get(path, [&](const char *data, size_t data_len) {
+        ofs.write(data, data_len);
+        total_downloaded += data_len;
+        return true;
+    });
+
+    ofs.close();
+
+    if (!res) {
+        last_error_ = "HTTPS download failed: " + httplib::to_string(res.error());
         std::filesystem::remove(tmp_archive);
         return false;
     }
 
-    if (!std::filesystem::exists(tmp_archive)) {
-        last_error_ = "Downloaded file not found";
+    if (res->status != 200) {
+        last_error_ = "HTTP " + std::to_string(res->status);
+        std::filesystem::remove(tmp_archive);
         return false;
     }
 
-    auto file_size = std::filesystem::file_size(tmp_archive);
-    if (file_size < 10000) {
-        last_error_ = "Downloaded file too small (" + std::to_string(file_size) +
-                      " bytes), likely an error page. URL may have changed.";
+    if (total_downloaded < 10000) {
+        last_error_ = "Downloaded file too small (" + std::to_string(total_downloaded) + " bytes)";
         std::filesystem::remove(tmp_archive);
         return false;
     }
@@ -158,12 +145,11 @@ bool UnminedInstaller::downloadAndInstall() {
     std::filesystem::path extract_dir = data_dir_ / ".tmp" / "extract";
     std::filesystem::create_directories(extract_dir);
 
+    int ret;
 #ifdef _WIN32
-    // Windows uses .zip
     std::string extract_cmd = "powershell -Command \"Expand-Archive -Path '" +
         tmp_archive.string() + "' -DestinationPath '" + extract_dir.string() + "' -Force\" 2>$null";
 #else
-    // Linux uses .tar.gz
     std::string extract_cmd = "tar xzf \"" + tmp_archive.string() +
         "\" -C \"" + extract_dir.string() + "\" 2>/dev/null";
 #endif
@@ -190,12 +176,12 @@ bool UnminedInstaller::downloadAndInstall() {
     }
 
     if (extracted_dir.empty()) {
-        last_error_ = "Could not find unmined-cli directory in extracted archive";
+        last_error_ = "Could not find unmined-cli in extracted archive";
         std::filesystem::remove_all(data_dir_ / ".tmp");
         return false;
     }
 
-    // Copy files to unmined_dir_
+    // Copy files
     for (const auto &entry : std::filesystem::recursive_directory_iterator(extracted_dir)) {
         if (!std::filesystem::is_regular_file(entry.path())) continue;
         auto rel = std::filesystem::relative(entry.path(), extracted_dir);
@@ -205,7 +191,7 @@ bool UnminedInstaller::downloadAndInstall() {
             std::filesystem::copy_options::overwrite_existing);
     }
 
-    // Make binary executable (Linux/macOS)
+    // Make executable
 #ifndef _WIN32
     auto bin = getBinaryPath();
     if (std::filesystem::exists(bin)) {
