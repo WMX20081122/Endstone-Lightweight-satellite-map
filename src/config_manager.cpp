@@ -26,7 +26,7 @@ void ConfigManager::load() {
             {"cycle", 30}
         }},
         {"paths", {
-            {"unminedCli", "./plugins/bdslm/unmined-cli/unmined-cli"},
+            {"unminedCli", ""},
             {"worldPath", ""},
             {"outputDir", ""}
         }}
@@ -59,7 +59,7 @@ void ConfigManager::load() {
     config_.auto_rend.cycle = ar.value("cycle", 30);
 
     auto &p = defaults["paths"];
-    config_.paths.unmined_cli = p.value("unminedCli", std::string("./plugins/bdslm/unmined-cli/unmined-cli"));
+    config_.paths.unmined_cli = p.value("unminedCli", std::string(""));
     config_.paths.world_path = p.value("worldPath", std::string(""));
     config_.paths.output_dir = p.value("outputDir", std::string(""));
 

@@ -57,6 +57,13 @@ void BDSLMPlugin::onLoad() {
 void BDSLMPlugin::onEnable() {
     getLogger().info("§e[卫星地图] §f正在启动...");
 
+    // Ensure unmined-cli path is set
+    auto &unmined_path = config_->getConfig().paths.unmined_cli;
+    if (unmined_path.empty() && installer_->isInstalled()) {
+        unmined_path = installer_->getBinaryPath().string();
+        config_->save();
+    }
+
     // Auto-install unmined-cli if missing (async to avoid blocking server)
     if (!installer_->isInstalled()) {
         getLogger().info("§e[卫星地图] §f未检测到 unmined-cli，正在后台自动安装...");
