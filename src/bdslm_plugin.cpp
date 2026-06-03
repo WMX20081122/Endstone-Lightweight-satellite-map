@@ -71,15 +71,23 @@ void BDSLMPlugin::onEnable() {
     }
 
     // Register event handlers
-    registerEvent<endstone::PlayerJoinEvent>(
-        [this](auto &event) { onPlayerJoin(event); }
-    );
-    registerEvent<endstone::PlayerQuitEvent>(
-        [this](auto &event) { onPlayerQuit(event); }
-    );
-    registerEvent<endstone::PlayerMoveEvent>(
-        [this](auto &event) { onPlayerMove(event); }
-    );
+    registerEvent<endstone::PlayerJoinEvent>([this](auto &event) {
+        tracker_->onJoin(event.getPlayer().getName());
+    });
+    registerEvent<endstone::PlayerQuitEvent>([this](auto &event) {
+        tracker_->onQuit(event.getPlayer().getName());
+    });
+    registerEvent<endstone::PlayerMoveEvent>([this](auto &event) {
+        auto &player = event.getPlayer();
+        auto &loc = player.getLocation();
+        std::string dim;
+        try {
+            dim = loc.getDimension().getName();
+        } catch (...) {
+            dim = "overworld";
+        }
+        tracker_->onMove(player.getName(), loc.getX(), loc.getY(), loc.getZ(), dim);
+    });
 
     // Start web server
     web_server_ = std::make_unique<WebServer>(*config_, *tracker_);
@@ -88,7 +96,7 @@ void BDSLMPlugin::onEnable() {
     }
 
     // Schedule player position file updates (every second = 20 ticks)
-    getServer().getScheduler().runTask(*this, [this]() {
+    getServer().getScheduler().runTaskTimer(*this, [this]() {
         tracker_->updateFile(config_->getPlayersPath());
     }, 20, 20);
 
@@ -96,7 +104,7 @@ void BDSLMPlugin::onEnable() {
     const auto &auto_rend = config_->getConfig().auto_rend;
     if (auto_rend.enable) {
         int cycle_ticks = auto_rend.cycle * 60 * 20;
-        getServer().getScheduler().runTask(*this, [this]() {
+        getServer().getScheduler().runTaskTimer(*this, [this]() {
             renderer_->render("overworld");
         }, cycle_ticks, cycle_ticks);
     }
@@ -233,27 +241,6 @@ bool BDSLMPlugin::onCommand(endstone::CommandSender &sender, const endstone::Com
     }
 
     return true;
-}
-
-// ============================================================
-// 事件处理
-// ============================================================
-void BDSLMPlugin::onPlayerJoin(endstone::PlayerJoinEvent &event) {
-    tracker_->onJoin(event.getPlayer().getName());
-}
-
-void BDSLMPlugin::onPlayerQuit(endstone::PlayerQuitEvent &event) {
-    tracker_->onQuit(event.getPlayer().getName());
-}
-
-void BDSLMPlugin::onPlayerMove(endstone::PlayerMoveEvent &event) {
-    auto &player = event.getPlayer();
-    auto loc = player.getLocation();
-    std::string dim = "overworld";
-    if (loc.getDimension()) {
-        dim = loc.getDimension()->getName();
-    }
-    tracker_->onMove(player.getName(), loc.getX(), loc.getY(), loc.getZ(), dim);
 }
 
 }  // namespace bdslm

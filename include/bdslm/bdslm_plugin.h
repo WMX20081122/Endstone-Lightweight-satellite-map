@@ -1,7 +1,17 @@
 #pragma once
 
 #include <endstone/plugin/plugin.h>
+#include <endstone/command/command.h>
+#include <endstone/command/command_sender.h>
 #include <memory>
+#include <string>
+#include <vector>
+
+namespace endstone {
+class PlayerJoinEvent;
+class PlayerQuitEvent;
+class PlayerMoveEvent;
+}
 
 namespace bdslm {
 
@@ -21,11 +31,6 @@ public:
     void onDisable() override;
     bool onCommand(endstone::CommandSender &sender, const endstone::Command &command,
                    const std::vector<std::string> &args) override;
-
-    // Event handlers
-    void onPlayerJoin(endstone::PlayerJoinEvent &event);
-    void onPlayerQuit(endstone::PlayerQuitEvent &event);
-    void onPlayerMove(endstone::PlayerMoveEvent &event);
 
     // Getters
     ConfigManager &getConfigManager() { return *config_; }
