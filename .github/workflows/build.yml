@@ -28,14 +28,23 @@ jobs:
     - name: Install Ninja
       run: sudo apt-get install -y ninja-build
 
-    - name: Install OpenSSL dev
+    - name: Install OpenSSL static libs
       run: sudo apt-get install -y libssl-dev
 
     - name: Configure CMake
-      run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_FLAGS="-stdlib=libc++"
+      run: |
+        cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_COMPILER=clang \
+          -DCMAKE_CXX_COMPILER=clang++ \
+          -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
+          -DOPENSSL_USE_STATIC_LIBS=ON
 
     - name: Build
       run: cmake --build build --config Release
+
+    - name: Check dynamic deps
+      run: ldd build/endstone_bdslm.so || true
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
