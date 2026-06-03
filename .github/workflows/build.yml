@@ -1,4 +1,4 @@
-name: Build BDSLM Plugin
+name: Build WMX SatMap Plugin
 
 on:
   push:
@@ -9,10 +9,6 @@ on:
 
 jobs:
   build-linux:
-    # Debian 12 has glibc 2.36 — too new for older servers
-    # Use a manylinux-style approach: compile on ubuntu-22.04 but link against older glibc
-    # Actually, let's use the same approach as Endstone: just build on ubuntu-22.04
-    # The real fix is to ensure the server has compatible glibc, or we static-link everything
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
@@ -32,8 +28,8 @@ jobs:
     - name: Install Ninja
       run: sudo apt-get install -y ninja-build
 
-    - name: Install OpenSSL & Brotli static libs
-      run: sudo apt-get install -y libssl-dev libbrotli-dev
+    - name: Install OpenSSL
+      run: sudo apt-get install -y libssl-dev
 
     - name: Configure CMake
       run: |
@@ -50,15 +46,15 @@ jobs:
     - name: Check dynamic deps
       run: |
         echo "=== ldd output ==="
-        ldd build/endstone_bdslm.so || true
+        ldd build/endstone_wmx_satmap.so || true
         echo "=== GLIBC requirements ==="
-        objdump -T build/endstone_bdslm.so | grep GLIBC | sed 's/.*GLIBC_//' | sort -V -u | tail -5
+        objdump -T build/endstone_wmx_satmap.so | grep GLIBC | sed 's/.*GLIBC_//' | sort -V -u | tail -5
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: endstone_bdslm_linux
-        path: build/endstone_bdslm.so
+        name: endstone_wmx_satmap_linux
+        path: build/endstone_wmx_satmap.so
         if-no-files-found: warn
 
   build-windows:
@@ -88,6 +84,6 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: endstone_bdslm_windows
-        path: build/endstone_bdslm.dll
+        name: endstone_wmx_satmap_windows
+        path: build/endstone_wmx_satmap.dll
         if-no-files-found: warn
