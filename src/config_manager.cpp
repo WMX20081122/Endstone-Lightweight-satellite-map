@@ -26,7 +26,7 @@ void ConfigManager::load() {
             {"cycle", 30}
         }},
         {"paths", {
-            {"unminedCli", ""},
+            {"unminedCli", "./plugins/wmx_satmap/unmined-cli/unmined-cli"},
             {"worldPath", ""},
             {"outputDir", ""}
         }}
@@ -59,7 +59,7 @@ void ConfigManager::load() {
     config_.auto_rend.cycle = ar.value("cycle", 30);
 
     auto &p = defaults["paths"];
-    config_.paths.unmined_cli = p.value("unminedCli", std::string(""));
+    config_.paths.unmined_cli = p.value("unminedCli", std::string("./plugins/wmx_satmap/unmined-cli/unmined-cli"));
     config_.paths.world_path = p.value("worldPath", std::string(""));
     config_.paths.output_dir = p.value("outputDir", std::string(""));
 

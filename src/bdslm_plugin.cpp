@@ -57,57 +57,45 @@ void BDSLMPlugin::onLoad() {
 void BDSLMPlugin::onEnable() {
     getLogger().info("§e[卫星地图] §f正在启动...");
 
-    // Ensure unmined-cli path is set
-    auto &unmined_path = config_->getConfig().paths.unmined_cli;
-    if (unmined_path.empty() && installer_->isInstalled()) {
-        unmined_path = installer_->getBinaryPath().string();
-        config_->save();
-    }
-
-    // Auto-install unmined-cli if missing (async to avoid blocking server)
+    // Auto-install unmined-cli if missing
     if (!installer_->isInstalled()) {
-        getLogger().info("§e[卫星地图] §f未检测到 unmined-cli，正在后台自动安装...");
-        installer_->ensureInstalledAsync([this](bool success, const std::string &error) {
-            if (success) {
-                getLogger().info("§e[卫星地图] §aunmined-cli 安装成功! 地图渲染现在可用。");
-                config_->getConfig().paths.unmined_cli = installer_->getBinaryPath().string();
-                config_->save();
-                renderer_->render("overworld");
-            } else {
-                getLogger().error("§e[卫星地图] §cunmined-cli 自动安装失败: {}", error);
-                getLogger().error("§e[卫星地图] §c请安装 lip、7z 或 tar 后重启服务器。");
-                getLogger().error("§e[卫星地图] §c或手动下载 unmined-cli 到: {}", installer_->getBinaryPath().parent_path().string());
-                getLogger().error("§e[卫星地图] §c下载地址: https://unmined.net/downloads/");
-                getLogger().error("§e[卫星地图] §c地图渲染功能已禁用。");
-            }
-        });
+        getLogger().info("§e[卫星地图] §f未检测到 unmined-cli，正在自动安装...");
+        if (installer_->ensureInstalled()) {
+            getLogger().info("§e[卫星地图] §aunmined-cli 安装成功!");
+            config_->getConfig().paths.unmined_cli = installer_->getBinaryPath().string();
+            config_->save();
+        } else {
+            getLogger().error("§e[卫星地图] §cunmined-cli 自动安装失败，地图渲染将不可用");
+            getLogger().error("§e[卫星地图] §c请手动下载: https://unmined.net/downloads/");
+        }
+    } else {
+        // Already installed — ensure path is set
+        auto &unmined_path = config_->getConfig().paths.unmined_cli;
+        if (unmined_path.empty()) {
+            unmined_path = installer_->getBinaryPath().string();
+            config_->save();
+        }
     }
 
     // Register event handlers
-    registerEvent<endstone::PlayerJoinEvent>([this](auto &event) {
-        tracker_->onJoin(event.getPlayer().getName());
-    });
-    registerEvent<endstone::PlayerQuitEvent>([this](auto &event) {
-        tracker_->onQuit(event.getPlayer().getName());
-    });
-    registerEvent<endstone::PlayerMoveEvent>([this](auto &event) {
-        auto &player = event.getPlayer();
-        auto loc = player.getLocation();
-        std::string dim = "overworld";
-        try {
-            dim = loc.getDimension().getName();
-        } catch (...) {}
-        tracker_->onMove(player.getName(), loc.getX(), loc.getY(), loc.getZ(), dim);
-    });
+    registerEvent<endstone::PlayerJoinEvent>(
+        [this](auto &event) { onPlayerJoin(event); }
+    );
+    registerEvent<endstone::PlayerQuitEvent>(
+        [this](auto &event) { onPlayerQuit(event); }
+    );
+    registerEvent<endstone::PlayerMoveEvent>(
+        [this](auto &event) { onPlayerMove(event); }
+    );
 
     // Start web server
     web_server_ = std::make_unique<WebServer>(*config_, *tracker_);
     if (!web_server_->start()) {
-        getLogger().error("§cWeb 服务器启动失败!");
+        getLogger().error("§e[卫星地图] §cWeb 服务器启动失败!");
     }
 
     // Schedule player position file updates (every second = 20 ticks)
-    getServer().getScheduler().runTaskTimer(*this, [this]() {
+    getServer().getScheduler().runTask(*this, [this]() {
         tracker_->updateFile(config_->getPlayersPath());
     }, 20, 20);
 
@@ -115,7 +103,7 @@ void BDSLMPlugin::onEnable() {
     const auto &auto_rend = config_->getConfig().auto_rend;
     if (auto_rend.enable) {
         int cycle_ticks = auto_rend.cycle * 60 * 20;
-        getServer().getScheduler().runTaskTimer(*this, [this]() {
+        getServer().getScheduler().runTask(*this, [this]() {
             renderer_->render("overworld");
         }, cycle_ticks, cycle_ticks);
     }
@@ -268,6 +256,27 @@ bool BDSLMPlugin::onCommand(endstone::CommandSender &sender, const endstone::Com
     }
 
     return true;
+}
+
+// ============================================================
+// 事件处理
+// ============================================================
+void BDSLMPlugin::onPlayerJoin(endstone::PlayerJoinEvent &event) {
+    tracker_->onJoin(event.getPlayer().getName());
+}
+
+void BDSLMPlugin::onPlayerQuit(endstone::PlayerQuitEvent &event) {
+    tracker_->onQuit(event.getPlayer().getName());
+}
+
+void BDSLMPlugin::onPlayerMove(endstone::PlayerMoveEvent &event) {
+    auto &player = event.getPlayer();
+    auto loc = player.getLocation();
+    std::string dim = "overworld";
+    try {
+        dim = loc.getDimension().getName();
+    } catch (...) {}
+    tracker_->onMove(player.getName(), loc.getX(), loc.getY(), loc.getZ(), dim);
 }
 
 }  // namespace bdslm

@@ -30,7 +30,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 
 # cpp-httplib (header-only HTTP server/client)
-# Enable OpenSSL for HTTPS, but do NOT require brotli (not available on Windows CI)
+# Do NOT require brotli — not available on Windows CI
 set(HTTPLIB_REQUIRE_OPENSSL ON)
 set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE ON)
 set(HTTPLIB_USE_BROTLI_IF_AVAILABLE OFF)
