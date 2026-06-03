@@ -17,19 +17,19 @@ namespace bdslm {
 // ============================================================
 // ENDSTONE_PLUGIN 宏 — 注册命令和权限
 // ============================================================
-ENDSTONE_PLUGIN("bdslm", "1.0.0", BDSLMPlugin)
+ENDSTONE_PLUGIN("wmx_satmap", "1.0.0", BDSLMPlugin)
 {
-    description = "BDSLM - Bedrock Server Live Map (卫星地图)";
-    website = "https://github.com/WMX20081122/endstone-bdslm";
+    description = "WMX SatMap - 卫星地图插件";
+    website = "https://github.com/WMX20081122/bdslm-cpp";
     authors = {"WMX20081122", "千寻酱"};
 
-    command("bdslm")
-        .description("BDSLM 地图管理")
-        .usages("/bdslm <render|status|reload|marker>")
-        .permissions("bdslm.use");
+    command("satmap")
+        .description("卫星地图管理")
+        .usages("/satmap <render|status|reload|marker>")
+        .permissions("wmx_satmap.use");
 
-    permission("bdslm.use")
-        .description("使用 BDSLM 命令")
+    permission("wmx_satmap.use")
+        .description("使用卫星地图命令")
         .default_(endstone::PermissionDefault::Operator);
 }
 
@@ -48,31 +48,30 @@ void BDSLMPlugin::onLoad() {
     renderer_ = std::make_unique<MapRenderer>(*config_);
     installer_ = std::make_unique<UnminedInstaller>(data_dir);
 
-    getLogger().info("BDSLM 加载中...");
+    getLogger().info("§e[卫星地图] §f插件加载中...");
 }
 
 // ============================================================
 // onEnable
 // ============================================================
 void BDSLMPlugin::onEnable() {
-    getLogger().info("BDSLM 正在启动...");
+    getLogger().info("§e[卫星地图] §f正在启动...");
 
     // Auto-install unmined-cli if missing (async to avoid blocking server)
     if (!installer_->isInstalled()) {
-        getLogger().info("未检测到 unmined-cli，正在后台自动安装...");
+        getLogger().info("§e[卫星地图] §f未检测到 unmined-cli，正在后台自动安装...");
         installer_->ensureInstalledAsync([this](bool success, const std::string &error) {
             if (success) {
-                getLogger().info("§aunmined-cli 安装成功! 地图渲染现在可用。");
+                getLogger().info("§e[卫星地图] §aunmined-cli 安装成功! 地图渲染现在可用。");
                 config_->getConfig().paths.unmined_cli = installer_->getBinaryPath().string();
                 config_->save();
-                // Do initial render now that unmined-cli is available
                 renderer_->render("overworld");
             } else {
-                getLogger().error("§cunmined-cli 自动安装失败: {}", error);
-                getLogger().error("§c请安装 lip、7z 或 tar 后重启服务器。");
-                getLogger().error("§c或手动下载 unmined-cli 到: {}", installer_->getBinaryPath().parent_path().string());
-                getLogger().error("§c下载地址: https://unmined.net/downloads/");
-                getLogger().error("§c地图渲染功能已禁用。");
+                getLogger().error("§e[卫星地图] §cunmined-cli 自动安装失败: {}", error);
+                getLogger().error("§e[卫星地图] §c请安装 lip、7z 或 tar 后重启服务器。");
+                getLogger().error("§e[卫星地图] §c或手动下载 unmined-cli 到: {}", installer_->getBinaryPath().parent_path().string());
+                getLogger().error("§e[卫星地图] §c下载地址: https://unmined.net/downloads/");
+                getLogger().error("§e[卫星地图] §c地图渲染功能已禁用。");
             }
         });
     }
@@ -117,20 +116,36 @@ void BDSLMPlugin::onEnable() {
     // Initial render
     renderer_->render("overworld");
 
+    // ============================================================
+    // 加载提示
+    // ============================================================
     const auto &ws = config_->getConfig().webserver;
-    getLogger().info("§aBDSLM 已就绪! 🗺️ 浏览器访问 §bhttp://{}:{}/", ws.bind_address, ws.port);
+
+    const std::string boot_logo = R"(
+§e  ___  _    _ ___    _____ ___   ___  _     _ _        _  
+§e / __|| |  | / __|  /  __ \|  \ /  || |   | | |      | | 
+§e \__ \| |/\| \__ \ | |    | |\/| || |   | | |      | | 
+§e |___/ \  /\  |___/ | \__/\| |  | || |___| | |____  | |____
+§e        \/  \/        \____/\_|  |_/\_____/\______/  \______/
+§e
+§6  WMX SatMap §e| §f卫星地图插件
+§f  作者: §bWMX20081122 §f协作: §b千寻酱
+§f  地图地址: §bhttp://{}:{}/
+)";
+    getLogger().info(boot_logo, ws.bind_address, ws.port);
+    getLogger().info("§e[卫星地图] §f加载完毕 §e| §f版本 §b{}", getDescription().getVersion());
 }
 
 // ============================================================
 // onDisable
 // ============================================================
 void BDSLMPlugin::onDisable() {
-    getLogger().info("BDSLM 正在关闭...");
+    getLogger().info("§e[卫星地图] §f正在关闭...");
     if (web_server_) {
         web_server_->stop();
     }
     config_->saveMarkers();
-    getLogger().info("BDSLM 已停止。再见! 👋");
+    getLogger().info("§e[卫星地图] §f插件已卸载");
 }
 
 // ============================================================
@@ -138,12 +153,12 @@ void BDSLMPlugin::onDisable() {
 // ============================================================
 bool BDSLMPlugin::onCommand(endstone::CommandSender &sender, const endstone::Command &command,
                              const std::vector<std::string> &args) {
-    if (command.getName() != "bdslm") {
+    if (command.getName() != "satmap") {
         return false;
     }
 
     if (args.empty()) {
-        sender.sendMessage("§e用法: /bdslm <render|status|reload|marker>");
+        sender.sendMessage("§e用法: /satmap <render|status|reload|marker>");
         return true;
     }
 
@@ -163,7 +178,7 @@ bool BDSLMPlugin::onCommand(endstone::CommandSender &sender, const endstone::Com
         }
     }
     else if (action == "status") {
-        sender.sendMessage("§eBDSLM 状态:");
+        sender.sendMessage("§e[卫星地图] 状态:");
         bool web_running = web_server_ && web_server_->isRunning();
         sender.sendMessage(std::string("  Web 服务器: ") + (web_running ? "§a运行中" : "§c已停止"));
         sender.sendMessage("  端口: " + std::to_string(config_->getConfig().webserver.port));
@@ -180,7 +195,7 @@ bool BDSLMPlugin::onCommand(endstone::CommandSender &sender, const endstone::Com
     }
     else if (action == "marker") {
         if (args.size() < 2) {
-            sender.sendMessage("§e用法: /bdslm marker <add|remove|list>");
+            sender.sendMessage("§e用法: /satmap marker <add|remove|list>");
             return true;
         }
 
@@ -238,7 +253,7 @@ bool BDSLMPlugin::onCommand(endstone::CommandSender &sender, const endstone::Com
             }
         }
         else {
-            sender.sendMessage("§e用法: /bdslm marker <add|remove|list>");
+            sender.sendMessage("§e用法: /satmap marker <add|remove|list>");
         }
     }
     else {
