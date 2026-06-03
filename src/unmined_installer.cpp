@@ -1,10 +1,10 @@
 #include "bdslm/unmined_installer.h"
-#include "bdslm/tar_extractor.h"
 #include <filesystem>
 #include <fstream>
 #include <cstdlib>
 #include <cstdio>
 #include <thread>
+#include <array>
 
 #include <httplib.h>
 
@@ -43,7 +43,7 @@ std::string UnminedInstaller::detectPlatform() const {
     if (pipe) {
         std::array<char, 64> buf;
         while (fgets(buf.data(), buf.size(), pipe) != nullptr) {
-            arch += buf.data();
+            arch = buf.data();
         }
         pclose(pipe);
         while (!arch.empty() && (arch.back() == '\n' || arch.back() == '\r' || arch.back() == ' '))
@@ -72,9 +72,9 @@ bool UnminedInstaller::ensureInstalled() {
     return downloadAndInstall();
 }
 
-void UnminedInstaller::ensureInstalledAsync(std::function<void(bool success)> callback) {
+void UnminedInstaller::ensureInstalledAsync(std::function<void(bool success, const std::string &error)> callback) {
     if (isInstalled()) {
-        if (callback) callback(true);
+        if (callback) callback(true, "");
         return;
     }
     if (installing_.load()) return;
@@ -83,8 +83,54 @@ void UnminedInstaller::ensureInstalledAsync(std::function<void(bool success)> ca
     std::thread([this, callback]() {
         bool result = downloadAndInstall();
         installing_.store(false);
-        if (callback) callback(result);
+        if (callback) callback(result, last_error_);
     }).detach();
+}
+
+std::string UnminedInstaller::findExtractTool() const {
+    // Priority: lip > 7z > tar
+    // lip is the standard BDS package manager
+    const char *candidates[] = {
+        "lip",
+        "7z",
+        "7za",
+        "tar",
+        nullptr
+    };
+
+    for (int i = 0; candidates[i] != nullptr; ++i) {
+        std::string cmd = std::string("which ") + candidates[i] + " 2>/dev/null";
+#ifdef _WIN32
+        cmd = std::string("where ") + candidates[i] + " 2>nul";
+#endif
+        int ret = std::system(cmd.c_str());
+        if (ret == 0) {
+            return candidates[i];
+        }
+    }
+    return "";
+}
+
+bool UnminedInstaller::extractArchive(const std::filesystem::path &archive,
+                                       const std::filesystem::path &output_dir,
+                                       const std::string &tool) {
+    std::string cmd;
+
+    if (tool == "lip") {
+        // lip can extract .tar.gz
+        cmd = "lip install --local " + archive.string() + " -o " + output_dir.string();
+    } else if (tool == "7z" || tool == "7za") {
+        // 7z handles .tar.gz in two steps: first decompress .gz, then extract .tar
+        // Or directly: 7z x archive.tar.gz -ooutput_dir
+        cmd = tool + " x " + archive.string() + " -o" + output_dir.string() + " -y";
+    } else if (tool == "tar") {
+        cmd = "tar xzf " + archive.string() + " -C " + output_dir.string();
+    } else {
+        return false;
+    }
+
+    int ret = std::system(cmd.c_str());
+    return (ret == 0);
 }
 
 bool UnminedInstaller::downloadAndInstall() {
@@ -94,13 +140,17 @@ bool UnminedInstaller::downloadAndInstall() {
     std::filesystem::create_directories(unmined_dir_);
     std::filesystem::create_directories(data_dir_ / ".tmp");
 
+    // Check for extraction tool BEFORE downloading
+    std::string extract_tool = findExtractTool();
+    if (extract_tool.empty()) {
+        last_error_ = "No extraction tool found. Please install lip, 7z, or tar.";
+        return false;
+    }
+
     // Download via cpp-httplib HTTPS client
     std::filesystem::path tmp_archive;
-    bool is_zip = false;
-
 #ifdef _WIN32
     tmp_archive = data_dir_ / ".tmp" / "unmined-cli-download.zip";
-    is_zip = true;
 #else
     tmp_archive = data_dir_ / ".tmp" / "unmined-cli-download.tar.gz";
 #endif
@@ -145,36 +195,15 @@ bool UnminedInstaller::downloadAndInstall() {
         return false;
     }
 
-    // Extract using built-in extractor (no external tools needed!)
+    // Extract using found tool
     std::filesystem::path extract_dir = data_dir_ / ".tmp" / "extract";
     std::filesystem::create_directories(extract_dir);
 
-    bool extract_ok = false;
-    if (is_zip) {
-#ifdef _WIN32
-        // Windows .zip: try PowerShell, then 7z
-        std::string cmd = "powershell -Command \"Expand-Archive -Path '" +
-            tmp_archive.string() + "' -DestinationPath '" + extract_dir.string() + "' -Force\" 2>$null";
-        int ret = std::system(cmd.c_str());
-        extract_ok = (ret == 0);
-        if (!extract_ok) {
-            last_error_ = "PowerShell extraction failed";
-        }
-#else
-        last_error_ = "ZIP extraction only supported on Windows";
-#endif
-    } else {
-        // Linux .tar.gz: use built-in TarGzExtractor
-        std::string tar_error;
-        extract_ok = TarGzExtractor::extract(tmp_archive.string(), extract_dir.string(), tar_error);
-        if (!extract_ok) {
-            last_error_ = "Tar extraction failed: " + tar_error;
-        }
-    }
-
+    bool extract_ok = extractArchive(tmp_archive, extract_dir, extract_tool);
     std::filesystem::remove(tmp_archive);
 
     if (!extract_ok) {
+        last_error_ = "Extraction failed using " + extract_tool;
         std::filesystem::remove_all(extract_dir);
         return false;
     }

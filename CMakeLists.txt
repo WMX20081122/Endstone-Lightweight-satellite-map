@@ -13,15 +13,6 @@ endif()
 
 include(FetchContent)
 
-# zlib (for gzip decompression in auto-installer)
-FetchContent_Declare(
-    zlib
-    GIT_REPOSITORY https://github.com/madler/zlib.git
-    GIT_TAG v1.3.1
-)
-set(ZLIB_BUILD_EXAMPLES OFF)
-FetchContent_MakeAvailable(zlib)
-
 # Endstone API
 FetchContent_Declare(
     endstone
@@ -39,11 +30,10 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 
 # cpp-httplib (header-only HTTP server/client)
-# Enable OpenSSL for HTTPS and link statically
+# Enable OpenSSL for HTTPS, but do NOT require brotli (not available on Windows CI)
 set(HTTPLIB_REQUIRE_OPENSSL ON)
 set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE ON)
-# Also static-link brotli and zlib via httplib options
-set(HTTPLIB_REQUIRE_BROTLI ON)
+set(HTTPLIB_USE_BROTLI_IF_AVAILABLE OFF)
 FetchContent_Declare(
     cpp-httplib
     GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
@@ -64,7 +54,6 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE
         nlohmann_json::nlohmann_json
         httplib::httplib
-        zlibstatic
 )
 
 target_include_directories(${PROJECT_NAME}

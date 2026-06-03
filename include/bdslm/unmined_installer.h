@@ -7,28 +7,23 @@
 
 namespace bdslm {
 
-// Auto-installs unmined-cli if not found
 class UnminedInstaller {
 public:
     explicit UnminedInstaller(const std::filesystem::path &data_dir);
 
-    // Returns true if unmined-cli is available
+    std::filesystem::path getBinaryPath() const;
+    bool isInstalled() const;
+    std::string getLastError() const;
+    bool isInstalling() const;
+
+    // Sync install
     bool ensureInstalled();
 
-    // Get the path to the unmined-cli binary
-    std::filesystem::path getBinaryPath() const;
+    // Async install — callback receives (success, error_message)
+    void ensureInstalledAsync(std::function<void(bool success, const std::string &error)> callback);
 
-    // Check if unmined-cli exists and is executable
-    bool isInstalled() const;
-
-    // Get last error message
-    std::string getLastError() const;
-
-    // Install asynchronously (calls callback on completion)
-    void ensureInstalledAsync(std::function<void(bool success)> callback);
-
-    // Check if async install is in progress
-    bool isInstalling() const;
+    // Detect current platform
+    std::string detectPlatform() const;
 
 private:
     std::filesystem::path data_dir_;
@@ -36,11 +31,14 @@ private:
     std::string last_error_;
     std::atomic<bool> installing_{false};
 
-    bool downloadAndInstall();
-    std::string detectPlatform() const;
     std::string getDownloadUrl(const std::string &platform) const;
+    bool downloadAndInstall();
+
+    // Find extraction tool: lip > 7z > tar
     std::string findExtractTool() const;
-    std::string getArchiveName(const std::string &platform) const;
+    bool extractArchive(const std::filesystem::path &archive,
+                        const std::filesystem::path &output_dir,
+                        const std::string &tool);
 };
 
 }  // namespace bdslm

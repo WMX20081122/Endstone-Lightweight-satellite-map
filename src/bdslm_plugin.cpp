@@ -60,7 +60,7 @@ void BDSLMPlugin::onEnable() {
     // Auto-install unmined-cli if missing (async to avoid blocking server)
     if (!installer_->isInstalled()) {
         getLogger().info("未检测到 unmined-cli，正在后台自动安装...");
-        installer_->ensureInstalledAsync([this](bool success) {
+        installer_->ensureInstalledAsync([this](bool success, const std::string &error) {
             if (success) {
                 getLogger().info("§aunmined-cli 安装成功! 地图渲染现在可用。");
                 config_->getConfig().paths.unmined_cli = installer_->getBinaryPath().string();
@@ -68,9 +68,11 @@ void BDSLMPlugin::onEnable() {
                 // Do initial render now that unmined-cli is available
                 renderer_->render("overworld");
             } else {
-                getLogger().error("§cunmined-cli 自动安装失败: {}", installer_->getLastError());
-                getLogger().error("§c请手动下载 unmined-cli 并解压到: {}", installer_->getBinaryPath().parent_path().string());
+                getLogger().error("§cunmined-cli 自动安装失败: {}", error);
+                getLogger().error("§c请安装 lip、7z 或 tar 后重启服务器。");
+                getLogger().error("§c或手动下载 unmined-cli 到: {}", installer_->getBinaryPath().parent_path().string());
                 getLogger().error("§c下载地址: https://unmined.net/downloads/");
+                getLogger().error("§c地图渲染功能已禁用。");
             }
         });
     }
