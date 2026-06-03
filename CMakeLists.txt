@@ -48,7 +48,7 @@ endstone_add_plugin(${PROJECT_NAME} ${PLUGIN_SOURCES})
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         nlohmann_json::nlohmann_json
-        cpp-httplib::cpp-httplib
+        httplib::httplib
 )
 
 target_include_directories(${PROJECT_NAME}
