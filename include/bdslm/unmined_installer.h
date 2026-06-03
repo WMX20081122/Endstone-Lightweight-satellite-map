@@ -39,6 +39,7 @@ private:
     bool downloadAndInstall();
     std::string detectPlatform() const;
     std::string getDownloadUrl(const std::string &platform) const;
+    std::string findExtractTool() const;
     std::string getArchiveName(const std::string &platform) const;
 };
 
