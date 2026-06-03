@@ -2,11 +2,16 @@
 #include "bdslm/config_manager.h"
 #include "bdslm/unmined_installer.h"
 
-#include <cstdio>
 #include <array>
 #include <thread>
 #include <filesystem>
 #include <fstream>
+#include <cstdlib>
+
+#ifdef _WIN32
+#include <cstdio>
+#include <windows.h>
+#endif
 
 namespace bdslm {
 
@@ -35,7 +40,6 @@ bool MapRenderer::render(const std::string &dimension) {
 
     // Check if unmined-cli exists
     if (!std::filesystem::exists(unmined_cli)) {
-        // Try installer path
         return false;
     }
 
@@ -58,27 +62,30 @@ bool MapRenderer::render(const std::string &dimension) {
 
     // Run in background thread
     std::thread([this, cmd, output_dir]() {
-        // Redirect stderr to stdout, capture via popen
+        // Cross-platform subprocess execution
+        int ret = -1;
+
+#ifdef _WIN32
+        // Windows: use _popen/_pclose
+        std::string full_cmd = cmd + " 2>&1";
+        FILE *pipe = _popen(full_cmd.c_str(), "r");
+        if (pipe) {
+            std::array<char, 256> buf;
+            while (fgets(buf.data(), buf.size(), pipe) != nullptr) {}
+            ret = _pclose(pipe);
+        }
+#else
+        // Linux: use popen/pclose
         std::string full_cmd = cmd + " 2>&1";
         FILE *pipe = popen(full_cmd.c_str(), "r");
-        if (!pipe) {
-            rendering_ = false;
-            return;
+        if (pipe) {
+            std::array<char, 256> buf;
+            while (fgets(buf.data(), buf.size(), pipe) != nullptr) {}
+            ret = pclose(pipe);
         }
+#endif
 
-        std::array<char, 256> buf;
-        std::string output;
-        while (fgets(buf.data(), buf.size(), pipe) != nullptr) {
-            output += buf.data();
-        }
-        int ret = pclose(pipe);
-
-        if (ret != 0) {
-            // Log error (first 500 chars)
-            if (output.size() > 500) output.resize(500);
-            // Can't call getLogger() from non-server thread easily,
-            // so we just mark rendering done
-        } else {
+        if (ret == 0) {
             applyTitle();
             applyMarkers();
         }

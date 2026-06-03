@@ -1,8 +1,11 @@
 #include "bdslm/unmined_installer.h"
-#include <cstdio>
-#include <array>
 #include <filesystem>
 #include <fstream>
+#include <cstdlib>
+
+#ifdef _WIN32
+#include <cstdio>
+#endif
 
 namespace bdslm {
 
@@ -20,6 +23,9 @@ bool UnminedInstaller::isInstalled() const {
 }
 
 std::string UnminedInstaller::detectPlatform() const {
+#ifdef _WIN32
+    return "windows-x64";
+#else
     // Detect Linux architecture
     FILE *pipe = popen("uname -m", "r");
     if (!pipe) return "linux-x64";
@@ -37,7 +43,8 @@ std::string UnminedInstaller::detectPlatform() const {
 
     if (arch == "aarch64" || arch == "arm64") return "linux-arm64";
     if (arch == "armv7l" || arch == "armhf") return "linux-arm";
-    return "linux-x64";  // Default: x86_64
+    return "linux-x64";
+#endif
 }
 
 bool UnminedInstaller::ensureInstalled() {
@@ -46,10 +53,13 @@ bool UnminedInstaller::ensureInstalled() {
 }
 
 bool UnminedInstaller::downloadAndInstall() {
+    // On Windows, auto-install is not supported (user must download manually)
+#ifdef _WIN32
+    return false;
+#else
     std::string platform = detectPlatform();
 
     // Construct download URL
-    // unmined-cli releases are at: https://unmined.net/download/unmined-cli-{platform}-dev/
     std::string download_url;
     if (platform == "linux-x64") {
         download_url = "https://unmined.net/download/unmined-cli-linux-x64-dev/";
@@ -72,7 +82,6 @@ bool UnminedInstaller::downloadAndInstall() {
     std::filesystem::create_directories(unmined_dir_);
 
     // Extract archive
-    // The tar archive contains a directory like unmined-cli_0.19.60-dev_linux-x64/
     std::string tar_cmd = "tar xzf \"" + tmp_archive.string() + "\" -C /tmp/ 2>/dev/null";
     ret = std::system(tar_cmd.c_str());
     if (ret != 0) {
@@ -81,7 +90,6 @@ bool UnminedInstaller::downloadAndInstall() {
     }
 
     // Find extracted directory and copy contents
-    // Try common patterns: unmined-cli_*_linux-x64/ or unmined-cli_*_linux-arm64/
     std::filesystem::path extracted_dir;
     for (const auto &entry : std::filesystem::directory_iterator("/tmp")) {
         auto name = entry.path().filename().string();
@@ -116,7 +124,7 @@ bool UnminedInstaller::downloadAndInstall() {
             std::filesystem::copy_options::overwrite_existing);
     }
 
-    // Make unmined-cli executable
+    // Make unmined-cli executable (Linux only)
     auto bin = getBinaryPath();
     if (std::filesystem::exists(bin)) {
         std::filesystem::permissions(bin,
@@ -131,6 +139,7 @@ bool UnminedInstaller::downloadAndInstall() {
     std::filesystem::remove_all(extracted_dir);
 
     return isInstalled();
+#endif
 }
 
 }  // namespace bdslm

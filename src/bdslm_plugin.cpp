@@ -79,12 +79,11 @@ void BDSLMPlugin::onEnable() {
     });
     registerEvent<endstone::PlayerMoveEvent>([this](auto &event) {
         auto &player = event.getPlayer();
-        auto &loc = player.getLocation();
-        std::string dim;
-        try {
-            dim = loc.getDimension().getName();
-        } catch (...) {
-            dim = "overworld";
+        auto loc = player.getLocation();
+        std::string dim = "overworld";
+        auto *dim_ptr = loc.getDimension();
+        if (dim_ptr) {
+            dim = dim_ptr->getName();
         }
         tracker_->onMove(player.getName(), loc.getX(), loc.getY(), loc.getZ(), dim);
     });
