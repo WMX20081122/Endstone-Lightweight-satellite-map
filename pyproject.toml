@@ -4,8 +4,8 @@ build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
 name = "endstone-bdslm"
-version = "1.0.2"
-description = "Bedrock Server Satellite Map Plugin for Endstone - Python Edition"
+version = "1.0.0"
+description = "BDSLM - Bedrock Server Live Map (卫星地图)"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"

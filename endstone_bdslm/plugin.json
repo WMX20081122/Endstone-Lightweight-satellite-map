@@ -1,15 +1,15 @@
 {
     "id": "bdslm",
-    "version": "1.0.2",
+    "version": "1.0.0",
     "name": "BDSLM",
-    "description": "Bedrock Server Satellite Map Plugin (Endstone Python) - 复刻 bdslm-js",
+    "description": "Bedrock Server Live Map - 卫星地图插件 (Endstone Python)",
     "author": "WMX20081122",
     "prefix": "BDSLM",
     "commands": [
         {
-            "name": "bdslm",
-            "description": "BDSLM satellite map management",
-            "usages": ["/bdslm <action>"],
+            "name": "satmap",
+            "description": "Satellite map management",
+            "usages": ["/satmap <action>"],
             "aliases": ["blm"],
             "permissions": ["bdslm.command"]
         }
@@ -17,7 +17,7 @@
     "permissions": [
         {
             "name": "bdslm.command",
-            "description": "Allow BDSLM commands",
+            "description": "Allow satellite map commands",
             "default": "operator"
         }
     ]
