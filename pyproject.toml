@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "endstone-bdslm"
+version = "1.0.2"
+description = "Bedrock Server Satellite Map Plugin for Endstone - Python Edition"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "WMX20081122" }
+]
+keywords = ["endstone", "minecraft", "bedrock", "satellite", "map", "bdslm"]
+
+[project.entry-points."endstone"]
+bdslm = "endstone_bdslm:BDSLMPlugin"
+
+[tool.setuptools.packages.find]
+include = ["endstone_bdslm*"]
