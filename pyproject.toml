@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=45"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "endstone-bdslm"
+version = "1.0.1"
+description = "BDSLM - Bedrock Server Live Map (卫星地图)"
+authors = [{name = "WMX20081122"}, {name = "千寻酱"}]
+
+[project.entry-points."endstone"]
+bdslm = "endstone_bdslm:BDSLMPlugin"
+
+[tool.setuptools.packages.find]
+include = ["endstone_bdslm*"]

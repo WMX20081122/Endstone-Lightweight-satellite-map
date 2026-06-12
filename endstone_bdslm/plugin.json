@@ -1,0 +1,7 @@
+{
+  "name": "bdslm",
+  "version": "1.0.1",
+  "main": "endstone_bdslm:BDSLMPlugin",
+  "api_version": "0.11",
+  "description": "BDSLM - Bedrock Server Live Map (卫星地图) v3.0 完整重写版"
+}

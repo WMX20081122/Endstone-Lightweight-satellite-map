@@ -1,0 +1,73 @@
+{
+  "webserver": {
+    "port": 5110,
+    "bindAddress": "0.0.0.0"
+  },
+  "mapRender": {
+    "zoomin": 1,
+    "zoomout": -5
+  },
+  "autoRend": {
+    "isEnabled": true,
+    "cycle": 120
+  },
+  "world": {
+    "name": "Bedrock level",
+    "path": ""
+  },
+  "openlayers": {
+    "options": {
+      "enableGrid": true,
+      "showGrid": true,
+      "binaryGrid": true,
+      "showScaleBar": false,
+      "denseGrid": false,
+      "showMarkers": true,
+      "showPlayers": true,
+      "centerX": 0,
+      "centerZ": 0
+    },
+    "playerMarker": {
+      "isEnabled": true,
+      "layerName": "playerMarker",
+      "layerProperties": {
+        "minZoom": 0,
+        "maxZoom": 7,
+        "zIndex": 999,
+        "opacity": 1
+      },
+      "controlConfig": {
+        "isEnabled": true,
+        "img": "assets/ui/marker/marker_white.png",
+        "openTitle": "玩家(开)",
+        "closeTitle": "玩家(关)"
+      },
+      "markerConfig": {
+        "image": "assets/ui/marker/arrow.png",
+        "imageRotation": true,
+        "imageAnchor": [0.5, 0.5],
+        "imageScale": "1",
+        "textAlign": "center",
+        "textJustify": "center",
+        "textPadding": [0, 0, 0, 0],
+        "textColor": "white",
+        "textStrokeColor": null,
+        "textStrokeWidth": 1,
+        "textBackgroundColor": "#454545",
+        "textBackgroundStrokeColor": null,
+        "textBackgroundStrokeWidth": 1,
+        "offsetX": 0,
+        "offsetY": 25,
+        "font": "15px Microsoft Yahei"
+      }
+    }
+  },
+  "webChat": {
+    "isEnabled": true,
+    "secretKey": "",
+    "tempMsgMaxNum": 100,
+    "tempMsgExpires": 1440,
+    "maxMsgLength": 100,
+    "maxSendMsgNumPerMinute": 30
+  }
+}
